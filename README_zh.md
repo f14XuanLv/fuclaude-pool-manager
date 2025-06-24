@@ -137,9 +137,9 @@ cp initial-sk-map.json.example initial-sk-map.json
     您可以通过运行以下命令来创建所需的 KV Namespace 并获取 ID：
     ```bash
     # 创建生产环境 KV
-    wrangler kv:namespace create "CLAUDE_KV"
+    wrangler kv namespace create "CLAUDE_KV"
     # 为本地开发创建预览环境 KV
-    wrangler kv:namespace create "CLAUDE_KV" --preview
+    wrangler kv namespace create "CLAUDE_KV" --preview
     ```
     Wrangler 会提示您将输出的配置添加到 `wrangler.jsonc` 文件中。
 
@@ -178,10 +178,10 @@ cp initial-sk-map.json.example initial-sk-map.json
     # {"email1@domain.com": "sk-...", "email2@domain.com": "sk-..."}
 
     # 写入生产环境 KV
-    wrangler kv:key put "EMAIL_TO_SK_MAP" --path ./initial-sk-map.json --binding CLAUDE_KV
+    wrangler kv key put "EMAIL_TO_SK_MAP" --path ./initial-sk-map.json --binding CLAUDE_KV --remote
 
     # 写入预览环境 KV (用于本地开发)
-    wrangler kv:key put "EMAIL_TO_SK_MAP" --path ./initial-sk-map.json --binding CLAUDE_KV --preview
+    wrangler kv key put "EMAIL_TO_SK_MAP" --path ./initial-sk-map.json --binding CLAUDE_KV --preview
     ```
 
 ## 常见问题排查
@@ -197,7 +197,7 @@ cp initial-sk-map.json.example initial-sk-map.json
     -   **解决方案**: 脚本已经更新为使用 `npx wrangler` 来执行命令，`npx` 会自动找到并使用项目本地安装的 `wrangler` 版本。如果您需要手动运行 `wrangler` 命令，也请务必使用 `npx wrangler ...` 的形式。
 
 3.  **错误: `Unknown arguments: json, kv:namespace, list` 或脚本在“检查 Wrangler 登录状态”后卡住/报错**
-    -   **原因**: Cloudflare 的 `wrangler` 工具在 v4 版本后更新了其命令行语法和输出格式。例如，`wrangler kv:namespace list --json` 这样的旧命令已不再有效。
+    -   **原因**: Cloudflare 的 `wrangler` 工具在 v4 版本后更新了其命令行语法和输出格式。例如，`wrangler kv namespace list --json` 这样的旧命令已不再有效。
     -   **解决方案**: 本项目中的 `deploy-worker-zh.mjs` 脚本已经针对 `wrangler` v4+ 进行了更新，能够正确解析新的命令输出格式并使用新的命令语法（例如 `wrangler kv namespace list`）。请确保您拉取了最新的代码。如果仍然遇到问题，请检查您的 `wrangler` 版本 (`npx wrangler --version`) 并确保脚本中的命令与之兼容。
 
 ## Git 仓库管理

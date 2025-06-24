@@ -137,9 +137,9 @@ If you prefer to set up the project manually, follow the steps below.
     You can create the required KV namespace and get the IDs by running:
     ```bash
     # Create production KV
-    wrangler kv:namespace create "CLAUDE_KV"
+    wrangler kv namespace create "CLAUDE_KV"
     # Create preview KV for local development
-    wrangler kv:namespace create "CLAUDE_KV" --preview
+    wrangler kv namespace create "CLAUDE_KV" --preview
     ```
     Wrangler will prompt you to add the output to your `wrangler.jsonc`.
 
@@ -178,10 +178,10 @@ If you prefer to set up the project manually, follow the steps below.
     # {"email1@domain.com": "sk-...", "email2@domain.com": "sk-..."}
 
     # Write to production KV
-    wrangler kv:key put "EMAIL_TO_SK_MAP" --path ./initial-sk-map.json --binding CLAUDE_KV
+    wrangler kv key put "EMAIL_TO_SK_MAP" --path ./initial-sk-map.json --binding CLAUDE_KV --remote
 
     # Write to preview KV for local development
-    wrangler kv:key put "EMAIL_TO_SK_MAP" --path ./initial-sk-map.json --binding CLAUDE_KV --preview
+    wrangler kv key put "EMAIL_TO_SK_MAP" --path ./initial-sk-map.json --binding CLAUDE_KV --preview
     ```
 
 ## Troubleshooting
@@ -197,7 +197,7 @@ When using the automated deployment script `deploy-worker.mjs`, you might encoun
     -   **Solution**: The script has been updated to use `npx wrangler` to execute commands. `npx` automatically finds and uses the version of `wrangler` installed locally in the project. If you need to run `wrangler` commands manually, be sure to use the `npx wrangler ...` format.
 
 3.  **Error: `Unknown arguments: json, kv:namespace, list` or the script gets stuck/errors after "Checking Wrangler login status"**
-    -   **Cause**: Cloudflare's `wrangler` tool updated its command-line syntax and output format in v4. Old commands like `wrangler kv:namespace list --json` are no longer valid.
+    -   **Cause**: Cloudflare's `wrangler` tool updated its command-line syntax and output format in v4. Old commands like `wrangler kv namespace list --json` are no longer valid.
     -   **Solution**: The `deploy-worker.mjs` script in this project has been updated for `wrangler` v4+, enabling it to correctly parse the new command output format and use the new command syntax (e.g., `wrangler kv namespace list`). Please ensure you have pulled the latest code. If you still encounter issues, check your `wrangler` version (`npx wrangler --version`) and ensure the commands in the script are compatible.
 
 ## Git Repository Management
