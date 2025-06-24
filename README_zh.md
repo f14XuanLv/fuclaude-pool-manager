@@ -1,5 +1,12 @@
 # FuClaude Pool Manager Worker (中文版)
 
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/f14XuanLv/fuclaude-pool-manager)
+<p align="center">
+  <a href="./LICENSE">
+    <img alt="License" src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge">
+  </a>
+  <img alt="Version" src="https://img.shields.io/badge/Version-0.1.0-blue?style=for-the-badge">
+</p>
 此 Cloudflare Worker 提供了一个后端服务，用于通过会话密钥 (SK) 池来管理对 Claude AI 的访问。它允许用户通过请求特定账户（如果知道）或随机可用账户来获取 Claude 登录 URL。它还包括用于从池中添加或删除 Email-SK 对的管理端点。
 
 该 Worker 利用 Cloudflare KV 来存储 Email 到会话密钥的映射。
@@ -209,3 +216,6 @@ cp initial-sk-map.json.example initial-sk-map.json
     git commit -m "feat: 初始化 FuClaude Pool Manager 项目"
     git push origin main
     ```
+---
+## 授权协议
+本仓库遵循 [MIT License](./LICENSE) 开源协议。

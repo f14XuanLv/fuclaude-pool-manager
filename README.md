@@ -1,5 +1,12 @@
 # FuClaude Pool Manager Worker
 
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/f14XuanLv/fuclaude-pool-manager)
+<p align="center">
+  <a href="./LICENSE">
+    <img alt="License" src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge">
+  </a>
+  <img alt="Version" src="https://img.shields.io/badge/Version-0.1.0-blue?style=for-the-badge">
+</p>
 This Cloudflare Worker provides a backend service to manage access to Claude AI using a pool of session keys (SKs). It allows users to obtain a Claude login URL by either requesting a specific account (if known) or a random available account. It also includes administrative endpoints to add or remove email-SK pairs from the pool.
 
 The worker utilizes Cloudflare KV to store the mapping of emails to session keys.
@@ -209,3 +216,6 @@ When using the automated deployment script `deploy-worker.mjs`, you might encoun
     git commit -m "feat: Initial setup of FuClaude Pool Manager"
     git push origin main
     ```
+---
+## License
+This project is licensed under the [MIT License](./LICENSE).
