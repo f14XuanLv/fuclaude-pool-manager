@@ -79,9 +79,32 @@ cp initial-sk-map.json.example initial-sk-map.json
 ### 快速上手 (推荐)
 
 本项目包含一个交互式部署脚本，可自动处理大部分设置过程。
-1.  **安装依赖:** `npm install`
-2.  **运行部署脚本:** `node deploy-worker-zh.mjs`
-3.  **跟随提示操作。**
+
+#### 准备工作
+
+在运行自动化部署脚本之前，请确保完成以下准备步骤：
+
+1.  **安装项目依赖:**
+    打开终端，运行以下命令来安装 `package.json` 中定义的所有必需依赖项。
+    ```bash
+    npm install
+    ```
+
+2.  **安装开发依赖:**
+    部署脚本需要 `prompts` 包来进行用户交互。请使用以下命令单独安装它作为开发依赖项。
+    ```bash
+    npm install prompts --save-dev
+    ```
+
+#### 开始部署
+
+完成准备工作后，即可开始部署：
+
+1.  **运行部署脚本:**
+    ```bash
+    node deploy-worker-zh.mjs
+    ```
+2.  **跟随提示操作:** 脚本将引导您完成命名 Worker、创建 KV Namespace 和设置密钥等后续步骤。
 
 ---
 
@@ -160,6 +183,22 @@ cp initial-sk-map.json.example initial-sk-map.json
     # 写入预览环境 KV (用于本地开发)
     wrangler kv:key put "EMAIL_TO_SK_MAP" --path ./initial-sk-map.json --binding CLAUDE_KV --preview
     ```
+
+## 常见问题排查
+
+在使用自动化部署脚本 `deploy-worker-zh.mjs` 时，您可能会遇到一些由于环境或 `wrangler` 版本更新导致的问题。这里列出了一些常见问题及其解决方案。
+
+1.  **错误: `Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'prompts'`**
+    -   **原因**: 部署脚本依赖的 `prompts` 包没有被安装。
+    -   **解决方案**: 在项目根目录运行 `npm install prompts --save-dev` 来安装这个缺失的开发依赖。
+
+2.  **错误: `'wrangler' 不是内部或外部命令...` 或 `command not found: wrangler`**
+    -   **原因**: `wrangler` 是作为项目的本地依赖安装的，其可执行文件路径并未添加到系统的 PATH 环境变量中。直接在终端中调用 `wrangler` 会导致此错误。
+    -   **解决方案**: 脚本已经更新为使用 `npx wrangler` 来执行命令，`npx` 会自动找到并使用项目本地安装的 `wrangler` 版本。如果您需要手动运行 `wrangler` 命令，也请务必使用 `npx wrangler ...` 的形式。
+
+3.  **错误: `Unknown arguments: json, kv:namespace, list` 或脚本在“检查 Wrangler 登录状态”后卡住/报错**
+    -   **原因**: Cloudflare 的 `wrangler` 工具在 v4 版本后更新了其命令行语法和输出格式。例如，`wrangler kv:namespace list --json` 这样的旧命令已不再有效。
+    -   **解决方案**: 本项目中的 `deploy-worker-zh.mjs` 脚本已经针对 `wrangler` v4+ 进行了更新，能够正确解析新的命令输出格式并使用新的命令语法（例如 `wrangler kv namespace list`）。请确保您拉取了最新的代码。如果仍然遇到问题，请检查您的 `wrangler` 版本 (`npx wrangler --version`) 并确保脚本中的命令与之兼容。
 
 ## Git 仓库管理
 

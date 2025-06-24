@@ -1,7 +1,10 @@
 import { execSync, exec } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import os from 'node:os';
 import prompts from 'prompts'; // For user input
+
+const WRANGLER_CMD = 'npx wrangler';
 
 // --- Configuration ---
 const DEFAULT_WRANGLER_CONFIG_PATH = './wrangler.jsonc';
@@ -50,8 +53,12 @@ async function executeCommandAsync(command, options = {}) {
 
 async function readJsonFile(filePath) {
   try {
-    const data = await fs.readFile(filePath, 'utf-8');
-    return JSON.parse(data);
+    const fileContent = await fs.readFile(filePath, 'utf-8');
+    // Remove BOM (if present)
+    const cleanedContent = fileContent.replace(/^\uFEFF/, '');
+    // Strip comments from JSONC before parsing
+    const jsonString = cleanedContent.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, '$1');
+    return JSON.parse(jsonString);
   } catch (error) {
     console.error(`Error reading or parsing JSON file ${filePath}:`, error);
     throw error;
@@ -86,17 +93,16 @@ async function deploy() {
     console.log('Checking Wrangler login status...');
     let accountId;
     try {
-      const whoamiOutput = executeCommand('wrangler whoami');
-      // Example parsing (very basic, Wrangler's output format might change)
-      const accountIdMatch = whoamiOutput.match(/Account ID:\s*([a-f0-9]+)/i);
+      const whoamiOutput = executeCommand(`${WRANGLER_CMD} whoami`);
+      const accountIdMatch = whoamiOutput.match(/│\s*.*\s*│\s*([a-f0-9]{32})\s*│/i);
       if (!accountIdMatch || !accountIdMatch[1]) {
-        throw new Error("Could not parse Account ID from 'wrangler whoami'.");
+        throw new Error(`Could not parse Account ID from '${WRANGLER_CMD} whoami'.`);
       }
       accountId = accountIdMatch[1];
       console.log(`✅ Logged in. Account ID: ${accountId}`);
     } catch (e) {
-      console.error("❌ Not logged into Wrangler or 'wrangler whoami' failed.");
-      console.log("Please run 'wrangler login' manually and then re-run this script.");
+      console.error(`❌ Not logged into Wrangler or '${WRANGLER_CMD} whoami' failed.`);
+      console.log(`Please run '${WRANGLER_CMD} login' manually and then re-run this script.`);
       process.exit(1);
     }
 
@@ -162,36 +168,32 @@ async function deploy() {
     console.log(`Creating KV Namespace: ${kvNamespaceName}...`);
     let kvId, kvPreviewId;
     try {
-        // Check if namespace already exists (Wrangler errors if it does on create)
-        const listOutput = executeCommand(`wrangler kv:namespace list --json`);
-        const existingNamespaces = JSON.parse(listOutput);
-        const existingKv = existingNamespaces.find(ns => ns.title === kvNamespaceName);
+        const listOutput = executeCommand(`${WRANGLER_CMD} kv namespace list`);
+        const listRegex = new RegExp(`│\\s*${kvNamespaceName}\\s*│\\s*([a-f0-9]{32})\\s*│`, "i");
+        const listMatch = listOutput.match(listRegex);
 
-        if (existingKv) {
-            console.log(`KV Namespace "${kvNamespaceName}" already exists. Using existing IDs.`);
-            kvId = existingKv.id;
-            // Preview ID isn't directly available from 'list' in older Wrangler versions.
-            // For simplicity, if it exists, we'll try to find its preview_id if wrangler deploy fails later or assume one might be set
-            // A more robust way would be to check the wrangler.jsonc if it was previously configured
-            // Or, for a truly fresh setup, script could fail if it pre-exists and user didn't expect it.
-            // Let's assume we need to get its preview_id if possible, or proceed and see.
-            // For now, if it exists, we take the ID. Preview ID might be an issue if not already in wrangler.jsonc.
-            // This script aims for "fresh setup" mostly, so existence is a slight edge case.
-             const kvInfoOutput = executeCommand(`wrangler kv:namespace get ${kvNamespaceName} --json`); // This might not exist or be the right command
-             // This part is tricky as Wrangler doesn't have a direct `get` by name with preview_id easily.
-             // For this script, let's assume if it exists, we only grab the ID and hope preview_id is either not needed or already configured
-             // This is a simplification.
-             console.warn(`Attempting to use existing KV namespace. Preview ID might need manual configuration if not already set in wrangler.jsonc for this KV.`);
-
+        if (listMatch && listMatch[1]) {
+            kvId = listMatch[1];
+            console.log(`✅ KV Namespace "${kvNamespaceName}" already exists. Using existing ID: ${kvId}`);
+            console.warn(`⚠️ NOTE: When using an existing KV namespace, the preview_id cannot be retrieved automatically. Please ensure it is configured in wrangler.jsonc if needed for development.`);
         } else {
-            const kvCreateOutput = executeCommand(`wrangler kv:namespace create "${kvNamespaceName}" --json`);
-            const kvInfo = JSON.parse(kvCreateOutput);
-            kvId = kvInfo.id;
-            kvPreviewId = kvInfo.preview_id; // Wrangler 3.x provides this
-            if (!kvId) throw new Error('Failed to parse KV ID from creation output.');
-            console.log(`✅ KV Namespace created. ID: ${kvId}, Preview ID: ${kvPreviewId || 'N/A (may need wrangler.jsonc config for dev)'}`);
-        }
+            console.log(`KV Namespace "${kvNamespaceName}" does not exist, creating...`);
+            const kvCreateOutput = executeCommand(`${WRANGLER_CMD} kv namespace create "${kvNamespaceName}"`);
+            
+            // Try to parse ID and Preview ID from the output
+            const idMatch = kvCreateOutput.match(/"id":\s*"([a-f0-9]{32})"/);
+            const previewIdMatch = kvCreateOutput.match(/"preview_id":\s*"([a-f0-9]{32})"/);
 
+            if (idMatch && idMatch[1]) {
+                kvId = idMatch[1];
+                if (previewIdMatch && previewIdMatch[1]) {
+                    kvPreviewId = previewIdMatch[1];
+                }
+                console.log(`✅ KV Namespace created. ID: ${kvId}, Preview ID: ${kvPreviewId || 'N/A'}`);
+            } else {
+                throw new Error('Failed to parse KV ID from the creation command output. Please check wrangler\'s output.');
+            }
+        }
     } catch (error) {
         console.error('❌ Failed to create or find KV Namespace.');
         throw error;
@@ -214,7 +216,7 @@ async function deploy() {
     console.log(`Deploying Worker ${workerName} using ${wranglerConfigPath}...`);
     // Pass --config flag if wrangler.jsonc is not in the current dir or has a different name
     // Assuming script is run from project root where wrangler.jsonc is.
-    executeCommand(`wrangler deploy ${path.basename(wranglerConfigPath) === 'wrangler.jsonc' ? '' : '--config ' + wranglerConfigPath}`);
+    executeCommand(`${WRANGLER_CMD} deploy ${path.basename(wranglerConfigPath) === 'wrangler.jsonc' ? '' : '--config ' + wranglerConfigPath}`);
     console.log('✅ Worker deployed successfully.');
 
     // --- Step 6: Set ADMIN_PASSWORD Secret ---
@@ -225,7 +227,7 @@ async function deploy() {
     });
     if (adminPassword) {
       // Need to pass input to stdin for wrangler secret put
-      executeCommand(`wrangler secret put ADMIN_PASSWORD`, { input: adminPassword });
+      executeCommand(`${WRANGLER_CMD} secret put ADMIN_PASSWORD`, { input: adminPassword });
       console.log('✅ ADMIN_PASSWORD secret set.');
     } else {
       console.log('⚠️ ADMIN_PASSWORD not set (input was empty).');
@@ -238,7 +240,7 @@ async function deploy() {
         message: 'Enter SENTRY_DSN (optional, leave blank to skip):'
     });
     if (sentryDsn) {
-        executeCommand(`wrangler secret put SENTRY_DSN`, { input: sentryDsn });
+        executeCommand(`${WRANGLER_CMD} secret put SENTRY_DSN`, { input: sentryDsn });
         console.log('✅ SENTRY_DSN secret set.');
     } else {
         console.log('ℹ️ SENTRY_DSN not set.');
@@ -265,28 +267,34 @@ async function deploy() {
         if (kvInitPath && await fileExists(kvInitPath)) {
             try {
                 const fileContent = await fs.readFile(kvInitPath, 'utf-8');
-                JSON.parse(fileContent); // Validate JSON
-                kvData = fileContent; // Use raw content for --path
+                const cleanedContent = fileContent.replace(/^\uFEFF/, '');
+                const jsonObj = JSON.parse(cleanedContent); // Validate and parse
+                kvData = JSON.stringify(jsonObj); // Use the cleaned and compacted JSON
                 console.log(`Initializing KV with data from: ${kvInitPath}`);
-                 executeCommand(`wrangler kv:key put "EMAIL_TO_SK_MAP" --path "${kvInitPath}" --binding ${KV_BINDING_NAME}`);
-                if (kvPreviewId) { // Only put to preview if preview_id was obtained
-                    executeCommand(`wrangler kv:key put "EMAIL_TO_SK_MAP" --path "${kvInitPath}" --binding ${KV_BINDING_NAME} --preview`);
-                } else {
-                    console.warn('Preview KV not updated as preview_id was not available/set for the KV namespace during creation.');
-                }
             } catch (err) {
                 console.error(`❌ Error reading or parsing initial SK map file ${kvInitPath}. Defaulting to empty map.`, err);
-                kvData = "{}"; // Fallback to empty if file is bad
-                 executeCommand(`wrangler kv:key put "EMAIL_TO_SK_MAP" "${kvData}" --binding ${KV_BINDING_NAME}`);
-                 if (kvPreviewId) executeCommand(`wrangler kv:key put "EMAIL_TO_SK_MAP" "${kvData}" --binding ${KV_BINDING_NAME} --preview`);
+                kvData = "{}"; // Fallback to empty map
             }
         } else {
             if (kvInitPath) console.log(`⚠️ Initial SK map file not found: ${kvInitPath}. Using empty map.`);
             else console.log(`Initializing KV with an empty map.`);
-             executeCommand(`wrangler kv:key put "EMAIL_TO_SK_MAP" "${kvData}" --binding ${KV_BINDING_NAME}`);
-             if (kvPreviewId) executeCommand(`wrangler kv:key put "EMAIL_TO_SK_MAP" "${kvData}" --binding ${KV_BINDING_NAME} --preview`);
         }
-        console.log('✅ EMAIL_TO_SK_MAP initialized in KV.');
+
+        // Use a temporary file to pass data to wrangler, avoiding all shell quoting issues.
+        const tempFilePath = path.join(os.tmpdir(), `temp-sk-map-${Date.now()}.json`);
+        try {
+            await fs.writeFile(tempFilePath, kvData, 'utf-8');
+            
+            executeCommand(`${WRANGLER_CMD} kv key put "EMAIL_TO_SK_MAP" --path "${tempFilePath}" --binding ${KV_BINDING_NAME} --remote`);
+            if (kvPreviewId) {
+                executeCommand(`${WRANGLER_CMD} kv key put "EMAIL_TO_SK_MAP" --path "${tempFilePath}" --binding ${KV_BINDING_NAME} --preview --remote`);
+            }
+            console.log('✅ EMAIL_TO_SK_MAP initialized in KV.');
+
+        } finally {
+            // Clean up the temporary file
+            await fs.unlink(tempFilePath).catch(err => console.error(`⚠️ Could not delete temp file ${tempFilePath}:`, err));
+        }
     }
 
 

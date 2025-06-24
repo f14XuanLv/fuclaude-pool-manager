@@ -1,7 +1,10 @@
 import { execSync, exec } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import os from 'node:os';
 import prompts from 'prompts'; // 用于用户交互输入
+
+const WRANGLER_CMD = 'npx wrangler';
 
 // --- 配置信息 ---
 const DEFAULT_WRANGLER_CONFIG_PATH = './wrangler.jsonc';
@@ -50,8 +53,12 @@ async function executeCommandAsync(command, options = {}) {
 
 async function readJsonFile(filePath) {
   try {
-    const data = await fs.readFile(filePath, 'utf-8');
-    return JSON.parse(data);
+    const fileContent = await fs.readFile(filePath, 'utf-8');
+    // 移除 BOM (如果存在)
+    const cleanedContent = fileContent.replace(/^\uFEFF/, '');
+    // 移除 JSONC 中的注释，然后再解析
+    const jsonString = cleanedContent.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, '$1');
+    return JSON.parse(jsonString);
   } catch (error) {
     console.error(`读取或解析 JSON 文件 ${filePath} 时出错:`, error);
     throw error;
@@ -86,17 +93,17 @@ async function deploy() {
     console.log('正在检查 Wrangler 登录状态...');
     let accountId;
     try {
-      const whoamiOutput = executeCommand('wrangler whoami');
+      const whoamiOutput = executeCommand(`${WRANGLER_CMD} whoami`);
       // 示例解析 (非常基础, Wrangler 的输出格式可能会改变)
-      const accountIdMatch = whoamiOutput.match(/Account ID:\s*([a-f0-9]+)/i);
+      const accountIdMatch = whoamiOutput.match(/│\s*.*\s*│\s*([a-f0-9]{32})\s*│/i);
       if (!accountIdMatch || !accountIdMatch[1]) {
-        throw new Error("无法从 'wrangler whoami' 解析账户 ID。");
+        throw new Error(`无法从 '${WRANGLER_CMD} whoami' 解析账户 ID。`);
       }
       accountId = accountIdMatch[1];
       console.log(`✅ 已登录。账户 ID: ${accountId}`);
     } catch (e) {
-      console.error("❌ 未登录到 Wrangler 或 'wrangler whoami' 执行失败。");
-      console.log("请手动运行 'wrangler login'，然后重新运行此脚本。");
+      console.error(`❌ 未登录到 Wrangler 或 '${WRANGLER_CMD} whoami' 执行失败。`);
+      console.log(`请手动运行 '${WRANGLER_CMD} login'，然后重新运行此脚本。`);
       process.exit(1);
     }
 
@@ -162,23 +169,32 @@ async function deploy() {
     console.log(`正在创建 KV Namespace: ${kvNamespaceName}...`);
     let kvId, kvPreviewId;
     try {
-        const listOutput = executeCommand(`wrangler kv:namespace list --json`);
-        const existingNamespaces = JSON.parse(listOutput);
-        const existingKv = existingNamespaces.find(ns => ns.title === kvNamespaceName);
+        const listOutput = executeCommand(`${WRANGLER_CMD} kv namespace list`);
+        const listRegex = new RegExp(`│\\s*${kvNamespaceName}\\s*│\\s*([a-f0-9]{32})\\s*│`, "i");
+        const listMatch = listOutput.match(listRegex);
 
-        if (existingKv) {
-            console.log(`KV Namespace "${kvNamespaceName}" 已存在。使用现有 ID。`);
-            kvId = existingKv.id;
-            console.warn(`正在尝试使用现有的 KV namespace。如果之前未在 wrangler.jsonc 中为此 KV 配置 preview_id，则可能需要手动配置。`);
+        if (listMatch && listMatch[1]) {
+            kvId = listMatch[1];
+            console.log(`✅ KV Namespace "${kvNamespaceName}" 已存在。使用现有 ID: ${kvId}`);
+            console.warn(`⚠️ 注意: 使用现有 KV namespace 时，无法自动获取 preview_id。如果开发环境需要，请确保它已在 wrangler.jsonc 中配置。`);
         } else {
-            const kvCreateOutput = executeCommand(`wrangler kv:namespace create "${kvNamespaceName}" --json`);
-            const kvInfo = JSON.parse(kvCreateOutput);
-            kvId = kvInfo.id;
-            kvPreviewId = kvInfo.preview_id; 
-            if (!kvId) throw new Error('未能从创建输出中解析 KV ID。');
-            console.log(`✅ KV Namespace 已创建。ID: ${kvId}, Preview ID: ${kvPreviewId || 'N/A (可能需要在 wrangler.jsonc 中为开发环境配置)'}`);
-        }
+            console.log(`KV Namespace "${kvNamespaceName}" 不存在，正在创建...`);
+            const kvCreateOutput = executeCommand(`${WRANGLER_CMD} kv namespace create "${kvNamespaceName}"`);
+            
+            // 尝试从输出中解析 ID 和 Preview ID
+            const idMatch = kvCreateOutput.match(/"id":\s*"([a-f0-9]{32})"/);
+            const previewIdMatch = kvCreateOutput.match(/"preview_id":\s*"([a-f0-9]{32})"/);
 
+            if (idMatch && idMatch[1]) {
+                kvId = idMatch[1];
+                if (previewIdMatch && previewIdMatch[1]) {
+                    kvPreviewId = previewIdMatch[1];
+                }
+                console.log(`✅ KV Namespace 已创建。ID: ${kvId}, Preview ID: ${kvPreviewId || 'N/A'}`);
+            } else {
+                throw new Error('未能从创建命令的输出中解析 KV ID。请检查 wrangler 的输出。');
+            }
+        }
     } catch (error) {
         console.error('❌ 创建或查找 KV Namespace 失败。');
         throw error;
@@ -198,7 +214,7 @@ async function deploy() {
 
     // --- 步骤 5: 部署 Worker ---
     console.log(`正在使用 ${wranglerConfigPath} 部署 Worker ${workerName}...`);
-    executeCommand(`wrangler deploy ${path.basename(wranglerConfigPath) === 'wrangler.jsonc' ? '' : '--config ' + wranglerConfigPath}`);
+    executeCommand(`${WRANGLER_CMD} deploy ${path.basename(wranglerConfigPath) === 'wrangler.jsonc' ? '' : '--config ' + wranglerConfigPath}`);
     console.log('✅ Worker 部署成功。');
 
     // --- 步骤 6: 设置 ADMIN_PASSWORD Secret ---
@@ -208,7 +224,7 @@ async function deploy() {
       message: '为 Worker 输入 ADMIN_PASSWORD (将作为 Secret 设置):'
     });
     if (adminPassword) {
-      executeCommand(`wrangler secret put ADMIN_PASSWORD`, { input: adminPassword });
+      executeCommand(`${WRANGLER_CMD} secret put ADMIN_PASSWORD`, { input: adminPassword });
       console.log('✅ ADMIN_PASSWORD Secret 已设置。');
     } else {
       console.log('⚠️ ADMIN_PASSWORD 未设置 (输入为空)。');
@@ -221,7 +237,7 @@ async function deploy() {
         message: '输入 SENTRY_DSN (可选, 留空则跳过):'
     });
     if (sentryDsn) {
-        executeCommand(`wrangler secret put SENTRY_DSN`, { input: sentryDsn });
+        executeCommand(`${WRANGLER_CMD} secret put SENTRY_DSN`, { input: sentryDsn });
         console.log('✅ SENTRY_DSN Secret 已设置。');
     } else {
         console.log('ℹ️ SENTRY_DSN 未设置。');
@@ -248,26 +264,34 @@ async function deploy() {
         if (kvInitPath && await fileExists(kvInitPath)) {
             try {
                 const fileContent = await fs.readFile(kvInitPath, 'utf-8');
-                JSON.parse(fileContent); // 验证 JSON
+                const cleanedContent = fileContent.replace(/^\uFEFF/, '');
+                const jsonObj = JSON.parse(cleanedContent); // 验证并解析
+                kvData = JSON.stringify(jsonObj); // 使用清理和压缩后的 JSON
                 console.log(`正在使用文件中的数据初始化 KV: ${kvInitPath}`);
-                 executeCommand(`wrangler kv:key put "EMAIL_TO_SK_MAP" --path "${kvInitPath}" --binding ${KV_BINDING_NAME}`);
-                if (kvPreviewId) { 
-                    executeCommand(`wrangler kv:key put "EMAIL_TO_SK_MAP" --path "${kvInitPath}" --binding ${KV_BINDING_NAME} --preview`);
-                } else {
-                    console.warn('Preview KV 未更新，因为在创建 KV Namespace 时 preview_id 不可用或未设置。');
-                }
             } catch (err) {
                 console.error(`❌ 读取或解析初始 SK 地图文件 ${kvInitPath} 时出错。将使用空地图。`, err);
-                executeCommand(`wrangler kv:key put "EMAIL_TO_SK_MAP" "${kvData}" --binding ${KV_BINDING_NAME}`);
-                if (kvPreviewId) executeCommand(`wrangler kv:key put "EMAIL_TO_SK_MAP" "${kvData}" --binding ${KV_BINDING_NAME} --preview`);
+                kvData = "{}"; // 回退到空地图
             }
         } else {
             if (kvInitPath) console.log(`⚠️ 未找到初始 SK 地图文件: ${kvInitPath}。将使用空地图。`);
             else console.log(`正在使用空地图初始化 KV。`);
-            executeCommand(`wrangler kv:key put "EMAIL_TO_SK_MAP" "${kvData}" --binding ${KV_BINDING_NAME}`);
-            if (kvPreviewId) executeCommand(`wrangler kv:key put "EMAIL_TO_SK_MAP" "${kvData}" --binding ${KV_BINDING_NAME} --preview`);
         }
-        console.log('✅ EMAIL_TO_SK_MAP 已在 KV 中初始化。');
+
+        // 使用临时文件将数据传递给 wrangler，以避免所有 shell 的引用问题。
+        const tempFilePath = path.join(os.tmpdir(), `temp-sk-map-${Date.now()}.json`);
+        try {
+            await fs.writeFile(tempFilePath, kvData, 'utf-8');
+            
+            executeCommand(`${WRANGLER_CMD} kv key put "EMAIL_TO_SK_MAP" --path "${tempFilePath}" --binding ${KV_BINDING_NAME} --remote`);
+            if (kvPreviewId) {
+                executeCommand(`${WRANGLER_CMD} kv key put "EMAIL_TO_SK_MAP" --path "${tempFilePath}" --binding ${KV_BINDING_NAME} --preview --remote`);
+            }
+            console.log('✅ EMAIL_TO_SK_MAP 已在 KV 中初始化。');
+
+        } finally {
+            // 清理临时文件
+            await fs.unlink(tempFilePath).catch(err => console.error(`⚠️ 无法删除临时文件 ${tempFilePath}:`, err));
+        }
     }
 
     console.log('\n🎉 Cloudflare Worker 部署和设置过程完成! 🎉');
