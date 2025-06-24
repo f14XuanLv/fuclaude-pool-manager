@@ -1,0 +1,4 @@
+# 这是用于本地 `wrangler dev` 开发环境的变量文件。
+# 注意：此文件不应提交到 Git 仓库。
+# 请将下面的密码更改为您自己的高强度密码。
+ADMIN_PASSWORD = "change_this_to_your_own_strong_password"

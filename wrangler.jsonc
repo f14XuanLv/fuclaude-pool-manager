@@ -1,0 +1,63 @@
+/**
+ * For more details on how to configure Wrangler, refer to:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "fuclaude-pool-manager",
+	"main": "src/index.ts",
+	"compatibility_date": "2025-06-20",
+	"compatibility_flags": ["nodejs_compat"],
+	"observability": {
+		"enabled": true
+	},
+
+	"kv_namespaces": [
+		{
+			"binding": "CLAUDE_KV",
+			"id": "01234567890123456789012345678901",
+			"preview_id": "01234567890123456789012345678901"
+		}
+	]
+	/**
+	 * Smart Placement
+	 * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
+	 */
+	// "placement": { "mode": "smart" },
+
+	/**
+	 * Bindings
+	 * Bindings allow your Worker to interact with resources on the Cloudflare Developer Platform, including
+	 * databases, object storage, AI inference, real-time communication and more.
+	 * https://developers.cloudflare.com/workers/runtime-apis/bindings/
+	 */
+
+	/**
+	 * Environment Variables & Secrets
+	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
+	 * 
+	 * Important:
+	 * - Use `vars` for non-sensitive configuration. These are visible in your wrangler.jsonc.
+	 * - Use `secrets` for sensitive data (e.g., API keys, passwords). You must create secrets using the command line:
+	 *   `npx wrangler secret put ADMIN_PASSWORD`
+	 * 
+	 * This template requires the following secrets:
+	 * - ADMIN_PASSWORD: The password for accessing administrative endpoints.
+	 * 
+	 * This template requires the following vars:
+	 * - BASE_URL: The base URL for the Claude API (e.g., "https://claude.ai").
+	 */
+	// "vars": { "BASE_URL": "https://claude.ai" },
+
+	/**
+	 * Static Assets
+	 * https://developers.cloudflare.com/workers/static-assets/binding/
+	 */
+	// "assets": { "directory": "./public/", "binding": "ASSETS" },
+
+	/**
+	 * Service Bindings (communicate between multiple Workers)
+	 * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
+	 */
+	// "services": [{ "binding": "MY_SERVICE", "service": "my-service" }]
+}
