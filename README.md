@@ -228,6 +228,13 @@ When using the automated deployment script `deploy-worker.mjs`, you might encoun
     -   **Cause**: Cloudflare's `wrangler` tool updated its command-line syntax and output format in v4. Old commands like `wrangler kv namespace list --json` are no longer valid.
     -   **Solution**: The `deploy-worker.mjs` script in this project has been updated for `wrangler` v4+, enabling it to correctly parse the new command output format and use the new command syntax (e.g., `wrangler kv namespace list`). Please ensure you have pulled the latest code. If you still encounter issues, check your `wrangler` version (`npx wrangler --version`) and ensure the commands in the script are compatible.
 
+4.  **How do I delete the API token created by the "Deploy" button?**
+    -   **Cause**: When you use the "Deploy with Cloudflare" button, Cloudflare automatically creates an API token with limited permissions to connect to your repository. Deleting the repository or the Worker does not automatically delete this token.
+    -   **Solution**: You need to manually delete it from your Cloudflare profile:
+        1.  Go to the Cloudflare dashboard, click your profile icon in the top right, and select **My Profile**.
+        2.  Navigate to the **API Tokens** tab on the left.
+        3.  Find the token (e.g., `your-repo-name build token`).
+        4.  Click the `...` menu on the right and select **Delete**.
 ---
 ## License
 This project is licensed under the [MIT License](./LICENSE).

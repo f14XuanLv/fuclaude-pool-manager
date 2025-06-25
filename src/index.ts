@@ -339,7 +339,7 @@ export default {
             const listWithIndexAndPreview = sortedEmails.map((email, index) => ({
                 index: index + 1,
                 email: email,
-                sk_preview: emailMap[email] ? `${emailMap[email].slice(0, 10)}...${emailMap[email].slice(-5)}` : "SK_INVALID_OR_MISSING" // Show a safer preview
+                sk_preview: emailMap[email] ? `${emailMap[email].slice(0, 20)}...${emailMap[email].slice(-10)}` : "SK_INVALID_OR_MISSING" // Show a safer preview
             }));
             return jsonResponse(listWithIndexAndPreview);
         }
