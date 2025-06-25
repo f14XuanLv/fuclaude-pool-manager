@@ -30,7 +30,7 @@ After deployment, you need to configure the necessary secrets and variables for 
     -   Enter the variable name: `ADMIN_PASSWORD`.
     -   Enter your desired password in the value field.
     -   From the **Type** dropdown, select **Secret**.
-    -   Click **Save** to apply the changes. Your worker will redeploy automatically.
+    -   Click **Save and deploy** to apply the changes immediately, or **Save** to apply them on the next deployment.
 4.  **Set other Secrets/Variables as needed:** Repeat the process for `SENTRY_DSN` (optional) or to modify the `BASE_URL`.
 
 > [!NOTE]
