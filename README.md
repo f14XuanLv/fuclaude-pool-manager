@@ -29,8 +29,8 @@ After deployment, you need to configure the necessary secrets and variables for 
     -   Under **Environment Variables**, click **Add variable**.
     -   Enter the variable name: `ADMIN_PASSWORD`.
     -   Enter your desired password in the value field.
-    -   Click the **Encrypt** button to turn it into a secret.
-    -   Click **Save**.
+    -   From the **Type** dropdown, select **Secret**.
+    -   Click **Save** to apply the changes. Your worker will redeploy automatically.
 4.  **Set other Secrets/Variables as needed:** Repeat the process for `SENTRY_DSN` (optional) or to modify the `BASE_URL`.
 
 > [!NOTE]
@@ -41,7 +41,7 @@ After deployment, you need to configure the necessary secrets and variables for 
 Your Worker is deployed, but its KV (database) is empty. You need to add your accounts. The easiest way is to use the new batch API endpoint.
 
 1.  **Prepare your data:**
-    Copy the content of `initial-sk-map.json.example` and fill it with your actual email and SK pairs. It should look like this:
+    Copy the content of `initial-sk-map.json.example` and fill it with your actual email and SK pairs.
     ```json
     {
       "user1@example.com": "sk-abc...",
@@ -50,7 +50,7 @@ Your Worker is deployed, but its KV (database) is empty. You need to add your ac
     ```
 
 2.  **Construct the API request body:**
-    Transform your data into the format required by the batch API. For each entry, create an "add" action.
+    Transform your data into the format required by the batch API.
     ```json
     {
       "admin_password": "YOUR_ADMIN_PASSWORD",
