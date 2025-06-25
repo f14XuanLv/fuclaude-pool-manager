@@ -77,6 +77,9 @@ Your Worker is deployed, but its KV (database) is empty. You need to add your ac
     ```
 You are all set! Your Worker is now fully configured and ready to use.
 
+> [!WARNING]
+> Deploying the project via the 'Deploy to Cloudflare' button or other GUI methods may automatically create an API token. This token is not automatically deleted when the project is removed. If needed, you can manually manage or delete it from your [API Tokens page](https://dash.cloudflare.com/profile/api-tokens).
+
 ---
 
 ## For Developers: Alternative Methods

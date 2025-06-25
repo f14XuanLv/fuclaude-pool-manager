@@ -77,6 +77,11 @@
     ```
 至此，一切就绪！您的 Worker 已完全配置好并准备就绪。
 
+> [!WARNING]
+> 通过按钮部署或者其他GUI操作部署该项目可能会自动创建 API 令牌。
+> 当项目删除后API令牌不会自动删除。
+> 如有需要，可以在页面中 https://dash.cloudflare.com/profile/api-tokens 手动管理或删除。
+
 ---
 
 ## 开发者选项：其他部署方式
