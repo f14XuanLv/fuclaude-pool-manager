@@ -1,39 +1,149 @@
 # FuClaude Pool Manager Worker (中文版)
 
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/f14XuanLv/fuclaude-pool-manager)
+
 <p align="center">
   <a href="./LICENSE">
     <img alt="License" src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge">
   </a>
-  <img alt="Version" src="https://img.shields.io/badge/Version-0.1.0-blue?style=for-the-badge">
+  <img alt="Version" src="https://img.shields.io/badge/Version-0.1.1-blue?style=for-the-badge">
 </p>
-此 Cloudflare Worker 提供了一个后端服务，用于通过会话密钥 (SK) 池来管理对 Claude AI 的访问。它允许用户通过请求特定账户（如果知道）或随机可用账户来获取 Claude 登录 URL。它还包括用于从池中添加或删除 Email-SK 对的管理端点。
 
-该 Worker 利用 Cloudflare KV 来存储 Email 到会话密钥的映射。
+此 Cloudflare Worker 提供了一个后端服务，用于通过会话密钥 (SK) 池来管理对 Claude AI 的访问。它允许用户通过请求特定账户或随机可用账户来获取 Claude 登录 URL，并包含用于管理 SK 池的管理员端点。
 
-## 首次配置
+## 快速上手：一键部署 (推荐)
 
-在部署此 Worker 之前, 您需要通过复制项目提供的示例文件来创建您自己的配置文件:
+这是最简单的入门方式。此路径全程使用图形用户界面，无需命令行操作。
 
-```bash
-# Windows (命令提示符)
-copy .dev.vars.example .dev.vars
-copy initial-sk-map.json.example initial-sk-map.json
+### 第一步：部署 Worker
 
-# Linux / macOS / Git Bash
-cp .dev.vars.example .dev.vars
-cp initial-sk-map.json.example initial-sk-map.json
-```
+点击页面顶部的 "Deploy with Cloudflare" 按钮。Cloudflare 的仪表板将会打开，并引导您创建此项目的副本并完成 Worker 的部署。
 
-接下来, 编辑新创建的 .dev.vars 和 initial-sk-map.json 文件, 填入您自己的管理员密码和 Claude 会话密钥。这些文件已被列在 .gitignore 中, 不会被提交到您的代码仓库。
+### 第二步：配置密钥和变量
 
-## 特性
+部署完成后，您需要为 Worker 配置必要的密钥和变量，以确保其正常运行。
 
--   用户通过特定 Email 或随机选择登录。
--   管理员功能，用于列出、添加、更新和删除 Email-SK 对。
--   为所有端点启用 CORS。
--   可选的 Sentry 集成用于错误跟踪。
--   为用户选择提供排序后的 Email 列表。
+1.  在您的 Cloudflare 仪表板中，导航至 **Workers & Pages**，然后选择您刚刚部署的应用。
+2.  进入 **Settings** (设置) 选项卡，然后点击 **Variables** (变量)。
+3.  **设置管理员密码 (密钥):**
+    -   在 **Environment Variables** (环境变量) 下，点击 **Add variable** (添加变量)。
+    -   输入变量名：`ADMIN_PASSWORD`。
+    -   在值字段中输入您想要的密码。
+    -   点击 **Encrypt** (加密) 按钮，将其转换为一个安全的密钥。
+    -   点击 **Save** (保存)。
+4.  **按需设置其他变量:** 对于 `SENTRY_DSN` (可选) 或修改 `BASE_URL`，重复此过程即可。
+
+> [!NOTE]
+> 要**修改**一个已存在的变量，只需在列表中找到它，点击 **Edit** (编辑)，输入新值，然后点击 **Save** (保存)。
+
+### 第三步：初始化数据 (通过 API)
+
+您的 Worker 已部署，但其 KV (数据库) 是空的。您需要添加您的账户信息。最简单的方式是使用新增的批量处理 API 端点。
+
+1.  **准备您的数据:**
+    复制 `initial-sk-map.json.example` 文件的内容，并填入您真实的 Email 和 SK 对。它看起来应该像这样：
+    ```json
+    {
+      "user1@example.com": "sk-abc...",
+      "user2@example.com": "sk-def..."
+    }
+    ```
+
+2.  **构建 API 请求体:**
+    将您的数据转换为批量处理 API 所需的格式。为每个条目创建一个 "add" 操作。
+    ```json
+    {
+      "admin_password": "您设置的管理员密码",
+      "actions": [
+        { "action": "add", "email": "user1@example.com", "sk": "sk-abc..." },
+        { "action": "add", "email": "user2@example.com", "sk": "sk-def..." }
+      ]
+    }
+    ```
+
+3.  **发送请求:**
+    您可以使用任何 API 工具 (如 Postman, Insomnia) 或 `curl` 命令将此数据发送到您的 Worker。请将 `您的WORKER地址` 替换为您的 Worker 的实际 URL。
+
+    ```bash
+    curl -X POST https://您的WORKER地址/api/admin/batch \
+    -H "Content-Type: application/json" \
+    -d '{
+      "admin_password": "您设置的管理员密码",
+      "actions": [
+        { "action": "add", "email": "user1@example.com", "sk": "sk-abc..." },
+        { "action": "add", "email": "user2@example.com", "sk": "sk-def..." }
+      ]
+    }'
+    ```
+至此，一切就绪！您的 Worker 已完全配置好并准备就绪。
+
+---
+
+## 开发者选项：其他部署方式
+
+本部分适用于熟悉命令行并希望对设置过程有更多控制的用户。
+
+### 方式 A：交互式脚本部署
+
+此方法使用 Node.js 脚本引导您完成部署。
+
+1.  **先决条件:**
+    -   已安装 Git、Node.js 和 npm。
+    -   通过 CLI 登录到 Cloudflare: `npx wrangler login`。
+2.  **克隆仓库:**
+    ```bash
+    git clone https://github.com/f14XuanLv/fuclaude-pool-manager.git
+    cd fuclaude-pool-manager
+    ```
+3.  **安装依赖:**
+    ```bash
+    npm install
+    ```
+4.  **运行部署脚本:**
+    ```bash
+    node deploy-worker-zh.mjs
+    ```
+    脚本将引导您完成命名 Worker、创建 KV Namespace 和设置密钥等步骤。
+
+### 方式 B：手动 CLI 部署
+
+这是为高级用户准备的完全手动的方法。
+
+1.  **先决条件**:
+    -   Cloudflare 账户。
+    -   已安装并配置 `wrangler` CLI (`npx wrangler login`)。
+    -   Node.js 和 npm/yarn。
+
+2.  **配置 (`wrangler.jsonc`)**:
+    手动编辑 `wrangler.jsonc` 来设置您的 Worker 名称，并在创建后添加 KV Namespace 绑定。
+
+3.  **创建 KV Namespace**:
+    ```bash
+    # 创建生产环境 KV
+    npx wrangler kv namespace create "CLAUDE_KV"
+    # 为本地开发创建预览环境 KV
+    npx wrangler kv namespace create "CLAUDE_KV" --preview
+    ```
+    Wrangler 会提示您将输出的配置添加到 `wrangler.jsonc` 文件中。
+
+4.  **设置密钥**:
+    ```bash
+    npx wrangler secret put ADMIN_PASSWORD
+    ```
+
+5.  **部署**:
+    ```bash
+    npx wrangler deploy
+    ```
+
+6.  **初始化 KV 数据 (CLI 方式)**:
+    您可以使用 `wrangler kv` 命令直接上传您的初始数据。
+    ```bash
+    # 确保 initial-sk-map.json 文件已填充好您的数据
+    npx wrangler kv key put "EMAIL_TO_SK_MAP" --path ./initial-sk-map.json --binding CLAUDE_KV --remote
+    ```
+
+---
 
 ## API 文档
 
@@ -81,115 +191,26 @@ cp initial-sk-map.json.example initial-sk-map.json
 -   **URL 路径**: `/api/admin/delete`
 -   **请求体**: `{"admin_password": "...", "email": "..."}`
 
-## 部署和初始化
-
-### 快速上手 (推荐)
-
-本项目包含一个交互式部署脚本，可自动处理大部分设置过程。
-
-#### 准备工作
-
-在运行自动化部署脚本之前，请确保完成以下准备步骤：
-
-1.  **安装项目依赖:**
-    打开终端，运行以下命令来安装 `package.json` 中定义的所有必需依赖项。
-    ```bash
-    npm install
-    ```
-
-2.  **安装开发依赖:**
-    部署脚本需要 `prompts` 包来进行用户交互。请使用以下命令单独安装它作为开发依赖项。
-    ```bash
-    npm install prompts --save-dev
-    ```
-
-#### 开始部署
-
-完成准备工作后，即可开始部署：
-
-1.  **运行部署脚本:**
-    ```bash
-    node deploy-worker-zh.mjs
-    ```
-2.  **跟随提示操作:** 脚本将引导您完成命名 Worker、创建 KV Namespace 和设置密钥等后续步骤。
-
----
-
-### 手动部署 (适用于高级用户)
-
-如果您希望手动设置项目，请按照以下步骤操作。
-
-1.  **先决条件**:
-    -   Cloudflare 账户。
-    -   已安装并配置 `wrangler` CLI (`wrangler login`)。
-    -   Node.js 和 npm/yarn。
-
-2.  **配置 (`wrangler.jsonc`)**:
-    确保您的 Wrangler 配置文件正确定义了 KV Namespace 绑定。模板中已包含占位符 ID。
-    ```jsonc
-    // wrangler.jsonc 示例
+#### 5. 批量添加/删除 Email-SK 对
+-   **目的**: 在单个请求中添加或删除多个 Email-SK 对。这是初始化或批量管理 KV 存储的理想方式。
+-   **HTTP 方法**: `POST`
+-   **URL 路径**: `/api/admin/batch`
+-   **请求体**: 
+    ```json
     {
-      "name": "fuclaude-pool-manager",
-      "main": "src/index.ts",
-      "compatibility_date": "2025-06-20",
-      "kv_namespaces": [
-        {
-          "binding": "CLAUDE_KV",
-          "id": "YOUR_KV_NAMESPACE_ID", // 替换为您的实际 KV Namespace ID
-          "preview_id": "YOUR_KV_NAMESPACE_PREVIEW_ID" // 替换为 wrangler dev 使用的预览 ID
-        }
+      "admin_password": "...",
+      "actions": [
+        { "action": "add", "email": "user1@example.com", "sk": "sk-abc..." },
+        { "action": "add", "email": "user2@example.com", "sk": "sk-def..." },
+        { "action": "delete", "email": "user_to_remove@example.com" }
       ]
     }
     ```
-    您可以通过运行以下命令来创建所需的 KV Namespace 并获取 ID：
-    ```bash
-    # 创建生产环境 KV
-    wrangler kv namespace create "CLAUDE_KV"
-    # 为本地开发创建预览环境 KV
-    wrangler kv namespace create "CLAUDE_KV" --preview
-    ```
-    Wrangler 会提示您将输出的配置添加到 `wrangler.jsonc` 文件中。
-
-3.  **设置 Secret 和变量**:
-    -   为所有敏感数据使用 `wrangler secret put` 命令：
-        ```bash
-        wrangler secret put ADMIN_PASSWORD
-        # (可选) 用于 Sentry 集成
-        wrangler secret put SENTRY_DSN
-        ```
-    -   对于本地开发 (`wrangler dev`)，请在项目根目录创建一个 `.dev.vars` 文件并添加您的机密信息。**此文件已包含在 `.gitignore` 中**。
-        ```
-        # 请务必修改为您自己的高强度密码
-        ADMIN_PASSWORD="change_this_to_your_own_strong_password"
-        SENTRY_DSN="your_sentry_dsn_if_any"
-        ```
-    -   `BASE_URL` 变量也是必需的。您可以在 Cloudflare 仪表板 (设置 > 变量) 中设置它，或将其添加到 `wrangler.jsonc` 的 `[vars]` 块中用于生产环境，以及 `.dev.vars` 中用于本地开发。
-        ```jsonc
-        // 在 wrangler.jsonc 中
-        "vars": { "BASE_URL": "https://claude.ai" },
-        ```
-        ```
-        # 在 .dev.vars 中
-        BASE_URL="https://claude.ai"
-        ```
-
-4.  **部署**:
-    ```bash
-    wrangler deploy
-    ```
-
-5.  **初始化 KV 数据**:
-    部署后，您可以使用 API (例如 `/api/admin/add`) 来添加您的账户，或使用 Wrangler 从本地 JSON 文件初始化 KV 存储：
-    ```bash
-    # 创建一个 initial-sk-map.json 文件并填入您的数据:
-    # {"email1@domain.com": "sk-...", "email2@domain.com": "sk-..."}
-
-    # 写入生产环境 KV
-    wrangler kv key put "EMAIL_TO_SK_MAP" --path ./initial-sk-map.json --binding CLAUDE_KV --remote
-
-    # 写入预览环境 KV (用于本地开发)
-    wrangler kv key put "EMAIL_TO_SK_MAP" --path ./initial-sk-map.json --binding CLAUDE_KV --preview
-    ```
+-   **详细说明**:
+    -   `actions` 数组可以包含任意数量的 `add` 或 `delete` 操作。
+    -   对于 `add` 操作, `email` 和 `sk` 都是必需的。如果某个 email 已存在, 其 SK 将被更新。
+    -   对于 `delete` 操作, 只需要 `email`。
+    -   响应中将返回一个关于每个操作状态的详细报告。
 
 ## 常见问题排查
 
@@ -207,15 +228,6 @@ cp initial-sk-map.json.example initial-sk-map.json
     -   **原因**: Cloudflare 的 `wrangler` 工具在 v4 版本后更新了其命令行语法和输出格式。例如，`wrangler kv namespace list --json` 这样的旧命令已不再有效。
     -   **解决方案**: 本项目中的 `deploy-worker-zh.mjs` 脚本已经针对 `wrangler` v4+ 进行了更新，能够正确解析新的命令输出格式并使用新的命令语法（例如 `wrangler kv namespace list`）。请确保您拉取了最新的代码。如果仍然遇到问题，请检查您的 `wrangler` 版本 (`npx wrangler --version`) 并确保脚本中的命令与之兼容。
 
-## Git 仓库管理
-
--   确保您的 `.gitignore` 文件包含 `node_modules/`, `.dev.vars`, 和 `.wrangler/`。(项目自带的 `.gitignore` 已配置好)。
--   将当前状态提交到 Git，为您自己的项目建立一个干净的基线:
-    ```bash
-    git add .
-    git commit -m "feat: 初始化 FuClaude Pool Manager 项目"
-    git push origin main
-    ```
 ---
 ## 授权协议
 本仓库遵循 [MIT License](./LICENSE) 开源协议。

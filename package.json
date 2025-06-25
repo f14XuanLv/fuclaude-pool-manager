@@ -1,6 +1,6 @@
 {
 	"name": "claude-pool-manager",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"license": "MIT",
 	"scripts": {
 		"deploy": "wrangler deploy",

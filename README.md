@@ -1,39 +1,149 @@
 # FuClaude Pool Manager Worker
 
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/f14XuanLv/fuclaude-pool-manager)
+
 <p align="center">
   <a href="./LICENSE">
     <img alt="License" src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge">
   </a>
-  <img alt="Version" src="https://img.shields.io/badge/Version-0.1.0-blue?style=for-the-badge">
+  <img alt="Version" src="https://img.shields.io/badge/Version-0.1.1-blue?style=for-the-badge">
 </p>
-This Cloudflare Worker provides a backend service to manage access to Claude AI using a pool of session keys (SKs). It allows users to obtain a Claude login URL by either requesting a specific account (if known) or a random available account. It also includes administrative endpoints to add or remove email-SK pairs from the pool.
 
-The worker utilizes Cloudflare KV to store the mapping of emails to session keys.
+This Cloudflare Worker provides a backend service to manage access to Claude AI using a pool of session keys (SKs). It allows users to obtain a Claude login URL by either requesting a specific account or a random available account. It also includes administrative endpoints to add or remove email-SK pairs from the pool.
 
-## First-Time Setup
+## Quick Start: One-Click Deploy (Recommended)
 
-Before you can deploy the worker, you need to create your own configuration files by copying the provided examples:
+This is the easiest way to get started. This path uses a graphical user interface for the entire process.
 
-```bash
-# For Windows (Command Prompt)
-copy .dev.vars.example .dev.vars
-copy initial-sk-map.json.example initial-sk-map.json
+### Step 1: Deploy the Worker
 
-# For Linux / macOS / Git Bash
-cp .dev.vars.example .dev.vars
-cp initial-sk-map.json.example initial-sk-map.json
-```
+Click the "Deploy with Cloudflare" button at the top of this page. The Cloudflare dashboard will open and guide you through creating a copy of this repository and deploying the Worker.
 
-Next, edit the newly created .dev.vars and initial-sk-map.json to fill in your own administrator password and Claude session keys. These files are already listed in .gitignore and will not be committed to your repository.
+### Step 2: Configure Secrets and Variables
 
-## Features
+After deployment, you need to configure the necessary secrets and variables for your Worker to function correctly.
 
--   User login via specific email or random selection.
--   Admin functions to list, add, update, and delete email-SK pairs.
--   CORS enabled for all endpoints.
--   Optional Sentry integration for error tracking.
--   Sorted email list for user selection.
+1.  In your Cloudflare Dashboard, navigate to **Workers & Pages** and select your newly deployed application.
+2.  Go to the **Settings** tab, then click on **Variables**.
+3.  **Set the Admin Password (Secret):**
+    -   Under **Environment Variables**, click **Add variable**.
+    -   Enter the variable name: `ADMIN_PASSWORD`.
+    -   Enter your desired password in the value field.
+    -   Click the **Encrypt** button to turn it into a secret.
+    -   Click **Save**.
+4.  **Set other Secrets/Variables as needed:** Repeat the process for `SENTRY_DSN` (optional) or to modify the `BASE_URL`.
+
+> [!NOTE]
+> To **modify** an existing variable, simply find it in the list, click **Edit**, enter the new value, and click **Save**.
+
+### Step 3: Initialize Your Data (via API)
+
+Your Worker is deployed, but its KV (database) is empty. You need to add your accounts. The easiest way is to use the new batch API endpoint.
+
+1.  **Prepare your data:**
+    Copy the content of `initial-sk-map.json.example` and fill it with your actual email and SK pairs. It should look like this:
+    ```json
+    {
+      "user1@example.com": "sk-abc...",
+      "user2@example.com": "sk-def..."
+    }
+    ```
+
+2.  **Construct the API request body:**
+    Transform your data into the format required by the batch API. For each entry, create an "add" action.
+    ```json
+    {
+      "admin_password": "YOUR_ADMIN_PASSWORD",
+      "actions": [
+        { "action": "add", "email": "user1@example.com", "sk": "sk-abc..." },
+        { "action": "add", "email": "user2@example.com", "sk": "sk-def..." }
+      ]
+    }
+    ```
+
+3.  **Send the request:**
+    You can use any API tool (like Postman, Insomnia) or the `curl` command to send this data to your Worker. Replace `YOUR_WORKER_URL` with your actual Worker's URL.
+
+    ```bash
+    curl -X POST https://YOUR_WORKER_URL/api/admin/batch \
+    -H "Content-Type: application/json" \
+    -d '{
+      "admin_password": "YOUR_ADMIN_PASSWORD",
+      "actions": [
+        { "action": "add", "email": "user1@example.com", "sk": "sk-abc..." },
+        { "action": "add", "email": "user2@example.com", "sk": "sk-def..." }
+      ]
+    }'
+    ```
+You are all set! Your Worker is now fully configured and ready to use.
+
+---
+
+## For Developers: Alternative Methods
+
+This section is for users who are comfortable with the command line and want more control over the setup process.
+
+### Method A: Interactive Script Deployment
+
+This method uses a Node.js script to guide you through the deployment.
+
+1.  **Prerequisites:**
+    -   Git, Node.js, and npm must be installed.
+    -   Log in to Cloudflare with the CLI: `npx wrangler login`.
+2.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/f14XuanLv/fuclaude-pool-manager.git
+    cd fuclaude-pool-manager
+    ```
+3.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
+4.  **Run the deployment script:**
+    ```bash
+    node deploy-worker.mjs
+    ```
+    The script will guide you through naming the Worker, creating the KV Namespace, and setting secrets.
+
+### Method B: Manual CLI Deployment
+
+This is the fully manual approach for advanced users.
+
+1.  **Prerequisites**:
+    -   Cloudflare account.
+    -   `wrangler` CLI installed and configured (`npx wrangler login`).
+    -   Node.js and npm/yarn.
+
+2.  **Configuration (`wrangler.jsonc`)**:
+    Manually edit `wrangler.jsonc` to set your Worker's name and add the KV namespace binding after creating it.
+
+3.  **Create KV Namespace**:
+    ```bash
+    # Create production KV
+    npx wrangler kv namespace create "CLAUDE_KV"
+    # Create preview KV for local development
+    npx wrangler kv namespace create "CLAUDE_KV" --preview
+    ```
+    Wrangler will prompt you to add the output to your `wrangler.jsonc`.
+
+4.  **Set Secrets**:
+    ```bash
+    npx wrangler secret put ADMIN_PASSWORD
+    ```
+
+5.  **Deploy**:
+    ```bash
+    npx wrangler deploy
+    ```
+
+6.  **Initialize KV Data (CLI Method)**:
+    You can use the `wrangler kv` command to directly upload your initial data map.
+    ```bash
+    # Ensure initial-sk-map.json is populated with your data
+    npx wrangler kv key put "EMAIL_TO_SK_MAP" --path ./initial-sk-map.json --binding CLAUDE_KV --remote
+    ```
+
+---
 
 ## API Documentation
 
@@ -81,115 +191,26 @@ Admin endpoints require an `admin_password` for authentication.
 -   **URL Path**: `/api/admin/delete`
 -   **Request Body**: `{"admin_password": "...", "email": "..."}`
 
-## Deployment and Initialization
-
-### Quick Start (Recommended)
-
-This project includes an interactive deployment script that handles most of the setup process automatically.
-
-#### Prerequisites
-
-Before running the automated deployment script, please ensure you complete the following preparation steps:
-
-1.  **Install Project Dependencies:**
-    Open your terminal and run the following command to install all the necessary dependencies defined in `package.json`.
-    ```bash
-    npm install
-    ```
-
-2.  **Install Development Dependency:**
-    The deployment script requires the `prompts` package for user interaction. Install it separately as a development dependency using this command:
-    ```bash
-    npm install prompts --save-dev
-    ```
-
-#### Start Deployment
-
-Once the prerequisites are met, you can begin the deployment:
-
-1.  **Run the deployment script:**
-    ```bash
-    node deploy-worker.mjs
-    ```
-2.  **Follow the prompts:** The script will guide you through the subsequent steps, such as naming your Worker, creating a KV Namespace, and setting up your secrets.
-
----
-
-### Manual Deployment (For advanced users)
-
-If you prefer to set up the project manually, follow the steps below.
-
-1.  **Prerequisites**:
-    -   Cloudflare account.
-    -   `wrangler` CLI installed and configured (`wrangler login`).
-    -   Node.js and npm/yarn.
-
-2.  **Configuration (`wrangler.jsonc`)**:
-    Ensure your Wrangler configuration file correctly defines the KV namespace binding. The template comes with placeholder IDs.
-    ```jsonc
-    // Example for wrangler.jsonc
+#### 5. Batch Add/Delete Email-SK Pairs
+-   **Purpose**: Adds or deletes multiple email-SK pairs in a single request. This is ideal for initializing or bulk-managing the KV store.
+-   **HTTP Method**: `POST`
+-   **URL Path**: `/api/admin/batch`
+-   **Request Body**: 
+    ```json
     {
-      "name": "fuclaude-pool-manager",
-      "main": "src/index.ts",
-      "compatibility_date": "2025-06-20",
-      "kv_namespaces": [
-        {
-          "binding": "CLAUDE_KV",
-          "id": "YOUR_KV_NAMESPACE_ID", // Replace with your actual KV namespace ID
-          "preview_id": "YOUR_KV_NAMESPACE_PREVIEW_ID" // Replace for wrangler dev
-        }
+      "admin_password": "...",
+      "actions": [
+        { "action": "add", "email": "user1@example.com", "sk": "sk-abc..." },
+        { "action": "add", "email": "user2@example.com", "sk": "sk-def..." },
+        { "action": "delete", "email": "user_to_remove@example.com" }
       ]
     }
     ```
-    You can create the required KV namespace and get the IDs by running:
-    ```bash
-    # Create production KV
-    wrangler kv namespace create "CLAUDE_KV"
-    # Create preview KV for local development
-    wrangler kv namespace create "CLAUDE_KV" --preview
-    ```
-    Wrangler will prompt you to add the output to your `wrangler.jsonc`.
-
-3.  **Set Secrets and Variables**:
-    -   Use the `wrangler secret put` command for all sensitive data:
-        ```bash
-        wrangler secret put ADMIN_PASSWORD
-        # (Optional) For Sentry integration
-        wrangler secret put SENTRY_DSN
-        ```
-    -   For local development with `wrangler dev`, create a `.dev.vars` file in the project root and add your secrets there. **This file is already in `.gitignore`**.
-        ```
-        # Please change this to your own strong password
-        ADMIN_PASSWORD="change_this_to_your_own_strong_password"
-        SENTRY_DSN="your_sentry_dsn_if_any"
-        ```
-    -   The `BASE_URL` variable is also required. You can set it in the Cloudflare Dashboard (Settings > Variables) or add it to your `wrangler.jsonc` `[vars]` block for production, and `.dev.vars` for local development.
-        ```jsonc
-        // In wrangler.jsonc
-        "vars": { "BASE_URL": "https://claude.ai" },
-        ```
-        ```
-        # In .dev.vars
-        BASE_URL="https://claude.ai"
-        ```
-
-4.  **Deploy**:
-    ```bash
-    wrangler deploy
-    ```
-
-5.  **Initialize KV Data**:
-    After deployment, you can use the API (e.g., `/api/admin/add`) to add your accounts, or initialize the KV store from a local JSON file using Wrangler:
-    ```bash
-    # Create an initial-sk-map.json file with your data:
-    # {"email1@domain.com": "sk-...", "email2@domain.com": "sk-..."}
-
-    # Write to production KV
-    wrangler kv key put "EMAIL_TO_SK_MAP" --path ./initial-sk-map.json --binding CLAUDE_KV --remote
-
-    # Write to preview KV for local development
-    wrangler kv key put "EMAIL_TO_SK_MAP" --path ./initial-sk-map.json --binding CLAUDE_KV --preview
-    ```
+-   **Details**:
+    -   The `actions` array can contain any number of `add` or `delete` operations.
+    -   For `add`, both `email` and `sk` are required. If an email already exists, its SK will be updated.
+    -   For `delete`, only `email` is required.
+    -   The response will provide a detailed report on the status of each action.
 
 ## Troubleshooting
 
@@ -207,15 +228,6 @@ When using the automated deployment script `deploy-worker.mjs`, you might encoun
     -   **Cause**: Cloudflare's `wrangler` tool updated its command-line syntax and output format in v4. Old commands like `wrangler kv namespace list --json` are no longer valid.
     -   **Solution**: The `deploy-worker.mjs` script in this project has been updated for `wrangler` v4+, enabling it to correctly parse the new command output format and use the new command syntax (e.g., `wrangler kv namespace list`). Please ensure you have pulled the latest code. If you still encounter issues, check your `wrangler` version (`npx wrangler --version`) and ensure the commands in the script are compatible.
 
-## Git Repository Management
-
--   Ensure your `.gitignore` file includes `node_modules/`, `.dev.vars`, and `.wrangler/`. (The provided file is already configured correctly).
--   Commit the current state to Git to establish a clean baseline for your own project:
-    ```bash
-    git add .
-    git commit -m "feat: Initial setup of FuClaude Pool Manager"
-    git push origin main
-    ```
 ---
 ## License
 This project is licensed under the [MIT License](./LICENSE).

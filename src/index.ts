@@ -24,7 +24,7 @@ interface Env {
    */
   ADMIN_PASSWORD: string;
   /**
-   * The base URL for the Claude API (e.g., https://claude.ai).
+   * The base URL for the Claude API (e.g., https://demo.fuclaude.com).
    * Used to construct the final login URL.
    */
   BASE_URL: string;
@@ -116,9 +116,26 @@ interface AdminUpdateRequest extends AdminRequestBase {
    * Optional: The new session key to replace the old one.
    */
   new_sk?: string;
-}
-
-// --- Helper Functions ---
+ }
+ 
+ /**
+  * Defines a single action within a batch request.
+  */
+ interface AdminBatchAction {
+   action: 'add' | 'delete';
+   email: string;
+   sk?: string; // Required for 'add', ignored for 'delete'
+ }
+ 
+ /**
+  * Defines the structure for a batch processing request.
+  * Inherits admin_password from AdminRequestBase.
+  */
+ interface AdminBatchRequest extends AdminRequestBase {
+   actions: AdminBatchAction[];
+ }
+ 
+ // --- Helper Functions ---
 
 /**
  * Creates a JSON response with appropriate CORS headers.
@@ -402,6 +419,62 @@ export default {
             return jsonResponse({ message: `Account ${body.email} has been updated successfully.` });
         }
         
+        // POST /api/admin/batch: Processes multiple add/delete operations in one request
+        if (url.pathname === '/api/admin/batch' && request.method === 'POST') {
+            const body: AdminBatchRequest = await request.json();
+            if (!body.actions || !Array.isArray(body.actions)) {
+                return jsonResponse({ error: 'The "actions" array is required for batch processing.' }, 400);
+            }
+
+            const emailMap = await getEmailSkMap(env);
+            const results = [];
+            let modified = false;
+
+            for (const item of body.actions) {
+                switch (item.action) {
+                    case 'add':
+                        if (!item.email || !item.sk) {
+                            results.push({ email: item.email, status: 'failed', reason: 'Email and SK are required for add action.' });
+                            continue;
+                        }
+                        if (emailMap[item.email]) {
+                            // To make it idempotent, we can treat adding an existing key as an update.
+                            emailMap[item.email] = item.sk;
+                            results.push({ email: item.email, status: 'updated' });
+                        } else {
+                            emailMap[item.email] = item.sk;
+                            results.push({ email: item.email, status: 'added' });
+                        }
+                        modified = true;
+                        break;
+                    
+                    case 'delete':
+                        if (!item.email) {
+                            results.push({ email: 'N/A', status: 'failed', reason: 'Email is required for delete action.' });
+                            continue;
+                        }
+                        if (emailMap[item.email]) {
+                            delete emailMap[item.email];
+                            results.push({ email: item.email, status: 'deleted' });
+                            modified = true;
+                        } else {
+                            results.push({ email: item.email, status: 'skipped', reason: 'Email not found.' });
+                        }
+                        break;
+
+                    default:
+                        results.push({ email: item.email, status: 'failed', reason: `Unknown action: ${item.action}` });
+                }
+            }
+
+            if (modified) {
+                await env.CLAUDE_KV.put('EMAIL_TO_SK_MAP', JSON.stringify(emailMap));
+                console.log(`Admin action: Batch processing completed with ${body.actions.length} actions.`);
+            }
+
+            return jsonResponse({ message: 'Batch processing complete.', results });
+        }
+
         // If an admin path was hit but not any of the specific routes above
         return jsonResponse({ error: 'Admin endpoint not found.' }, 404);
 

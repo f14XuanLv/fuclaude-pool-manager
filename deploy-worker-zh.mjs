@@ -11,7 +11,7 @@ const DEFAULT_WRANGLER_CONFIG_PATH = './wrangler.jsonc';
 const DEFAULT_INITIAL_SK_MAP_PATH = './initial-sk-map.json'; // 示例路径
 const DEFAULT_WORKER_NAME_PREFIX = 'fuclaude-pool-manager';
 const DEFAULT_KV_NAMESPACE_PREFIX = 'CLAUDE_KV_STORE';
-const DEFAULT_BASE_URL = 'https://claude.ai';
+const DEFAULT_BASE_URL = 'https://demo.fuclaude.com';
 const KV_BINDING_NAME = 'CLAUDE_KV'; // 与 src/index.ts 中使用的名称一致
 
 // --- 辅助函数 ---
