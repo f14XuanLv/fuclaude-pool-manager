@@ -230,17 +230,22 @@ async function deploy() {
       console.log('⚠️ ADMIN_PASSWORD 未设置 (输入为空)。');
     }
 
-    // --- (可选) 步骤 6b: 设置 SENTRY_DSN Secret ---
-    const { sentryDsn } = await prompts({
-        type: 'text', 
-        name: 'sentryDsn',
-        message: '输入 SENTRY_DSN (可选, 留空则跳过):'
+    // --- (可选) 步骤 6b: 设置 TOKEN_EXPIRES_IN 变量 ---
+    const { tokenExpiresIn } = await prompts({
+        type: 'text',
+        name: 'tokenExpiresIn',
+        message: '输入默认的令牌有效时间（秒） (例如, 86400 代表24小时, 可选, 留空则永不过期):',
+        validate: value => (!value || /^\d+$/.test(value)) ? true : '请输入一个有效的数字（秒）。'
     });
-    if (sentryDsn) {
-        executeCommand(`${WRANGLER_CMD} secret put SENTRY_DSN`, { input: sentryDsn });
-        console.log('✅ SENTRY_DSN Secret 已设置。');
+    if (tokenExpiresIn) {
+        // 这是一个普通变量, 不是 secret
+        wranglerConfig.vars = { ...(wranglerConfig.vars || {}), TOKEN_EXPIRES_IN: tokenExpiresIn };
+        await writeJsonFile(wranglerConfigPath, wranglerConfig);
+        console.log('✅ TOKEN_EXPIRES_IN 变量已在 wrangler.jsonc 中设置。正在重新部署以应用...');
+        executeCommand(`${WRANGLER_CMD} deploy ${path.basename(wranglerConfigPath) === 'wrangler.jsonc' ? '' : '--config ' + wranglerConfigPath}`);
+        console.log('✅ 重新部署完成。');
     } else {
-        console.log('ℹ️ SENTRY_DSN 未设置。');
+        console.log('ℹ️ TOKEN_EXPIRES_IN 未设置。令牌将默认永不过期。');
     }
 
 

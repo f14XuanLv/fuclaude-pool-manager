@@ -233,17 +233,22 @@ async function deploy() {
       console.log('⚠️ ADMIN_PASSWORD not set (input was empty).');
     }
 
-    // --- (Optional) Step 6b: Set SENTRY_DSN Secret ---
-    const { sentryDsn } = await prompts({
-        type: 'text', // Password type hides input, text is fine for DSN
-        name: 'sentryDsn',
-        message: 'Enter SENTRY_DSN (optional, leave blank to skip):'
+    // --- (Optional) Step 6b: Set TOKEN_EXPIRES_IN Variable ---
+    const { tokenExpiresIn } = await prompts({
+        type: 'text',
+        name: 'tokenExpiresIn',
+        message: 'Enter default token expiration in seconds (e.g., 86400 for 24h, optional, leave blank for no expiration):',
+        validate: value => (!value || /^\d+$/.test(value)) ? true : 'Please enter a valid number of seconds.'
     });
-    if (sentryDsn) {
-        executeCommand(`${WRANGLER_CMD} secret put SENTRY_DSN`, { input: sentryDsn });
-        console.log('✅ SENTRY_DSN secret set.');
+    if (tokenExpiresIn) {
+        // This is a regular variable, not a secret
+        wranglerConfig.vars = { ...(wranglerConfig.vars || {}), TOKEN_EXPIRES_IN: tokenExpiresIn };
+        await writeJsonFile(wranglerConfigPath, wranglerConfig);
+        console.log('✅ TOKEN_EXPIRES_IN variable set in wrangler.jsonc. Re-deploying to apply...');
+        executeCommand(`${WRANGLER_CMD} deploy ${path.basename(wranglerConfigPath) === 'wrangler.jsonc' ? '' : '--config ' + wranglerConfigPath}`);
+        console.log('✅ Re-deployment complete.');
     } else {
-        console.log('ℹ️ SENTRY_DSN not set.');
+        console.log('ℹ️ TOKEN_EXPIRES_IN not set. Tokens will not expire by default.');
     }
 
 

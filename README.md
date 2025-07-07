@@ -31,7 +31,9 @@ After deployment, you need to configure the necessary secrets and variables for 
     -   Enter your desired password in the value field.
     -   From the **Type** dropdown, select **Secret**.
     -   Click **Save and deploy** to apply the changes immediately, or **Save** to apply them on the next deployment.
-4.  **Set other Secrets/Variables as needed:** Repeat the process for `SENTRY_DSN` (optional) or to modify the `BASE_URL`.
+4.  **Set other Secrets/Variables as needed:** Repeat the process for other variables:
+    -   `TOKEN_EXPIRES_IN` (optional): The default token expiration time in seconds. For example, `86400` for 24 hours. If not set, tokens will not expire by default.
+    -   `BASE_URL`: The base URL for your Claude instance.
 
 > [!NOTE]
 > To **modify** an existing variable, simply find it in the list, click **Edit**, enter the new value, and click **Save**.
@@ -163,18 +165,30 @@ All API endpoints are relative to the Worker's deployed URL.
 -   **Purpose**: Obtains a temporary login URL for Claude AI.
 -   **HTTP Method**: `POST`
 -   **URL Path**: `/api/login`
--   **Request Body**: `{"mode": "specific" | "random", "email"?: "...", "unique_name"?: "..."}`
+-   **Request Body**: `{"mode": "specific" | "random", "email"?: "...", "unique_name"?: "...", "expires_in"?: number}`
+    -   **`expires_in`** (optional, number): The desired token expiration time in seconds.
+    -   **Behavior**: The effective expiration time is capped by the `TOKEN_EXPIRES_IN` environment variable. If you request a duration longer than the allowed maximum, it will be automatically reduced to the maximum, and the API response will include a `warning` field. If `TOKEN_EXPIRES_IN` is not set or is `0`, there is no upper limit.
+-   **Success Response**: `{"login_url": "...", "warning"?: "..."}`
+    -   Returns a `login_url` on success.
+    -   Returns an optional `warning` if the `expires_in` was adjusted.
 
 ### Admin Endpoints
 
 Admin endpoints require an `admin_password` for authentication.
 
-#### 1. List Email-SK Pairs
+#### 1. Admin Login to Claude (Unrestricted)
+-   **Purpose**: Obtains a temporary login URL for Claude AI, bypassing user-facing expiration limits.
+-   **HTTP Method**: `POST`
+-   **URL Path**: `/api/admin/login`
+-   **Request Body**: `{"admin_password": "...", "mode": "specific" | "random", "email"?: "...", "unique_name"?: "...", "expires_in"?: number}`
+    -   **`expires_in`** (optional, number): The desired token expiration time in seconds. Defaults to `0` (no expiration) if not provided. This value is **not** limited by the `TOKEN_EXPIRES_IN` environment variable.
+
+#### 2. List Email-SK Pairs
 -   **Purpose**: Retrieves a list of all configured email addresses and a preview of their SKs.
 -   **HTTP Method**: `GET`
 -   **URL Path**: `/api/admin/list?admin_password=YOUR_PASSWORD`
 
-#### 2. Add Email-SK Pair
+#### 3. Add Email-SK Pair
 -   **Purpose**: Adds a new email and its corresponding session key (SK) to the KV store.
 -   **HTTP Method**: `POST`
 -   **URL Path**: `/api/admin/add`

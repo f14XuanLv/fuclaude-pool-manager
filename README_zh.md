@@ -31,7 +31,9 @@
     -   在值字段中输入您想要的密码。
     -   从 **类型** 下拉菜单中，选择 **密钥**。
     -   点击 **Save and deploy** (保存并部署) 以立即应用更改，或点击 **Save** (保存) 以在下次部署时生效。
-4.  **按需设置其他变量:** 对于 `SENTRY_DSN` (可选) 或修改 `BASE_URL`，重复此过程即可。
+4.  **按需设置其他变量:** 对于其他变量，重复此过程即可：
+    -   `TOKEN_EXPIRES_IN` (可选): 默认的令牌有效时间，单位为秒。例如，`86400` 代表 24 小时。如果未设置，令牌默认不会过期。
+    -   `BASE_URL`: 您的 Claude 实例的基础 URL。
 
 > [!NOTE]
 > 要**修改**一个已存在的变量，只需在列表中找到它，点击 **Edit** (编辑)，输入新值，然后点击 **Save** (保存)。
@@ -165,18 +167,30 @@
 -   **目的**: 获取 Claude AI 的临时登录 URL。
 -   **HTTP 方法**: `POST`
 -   **URL 路径**: `/api/login`
--   **请求体**: `{"mode": "specific" | "random", "email"?: "...", "unique_name"?: "..."}`
+-   **请求体**: `{"mode": "specific" | "random", "email"?: "...", "unique_name"?: "...", "expires_in"?: number}`
+    -   **`expires_in`** (可选, 数字): 期望的令牌有效时间，单位为秒。
+    -   **行为**: 实际的有效时间受 `TOKEN_EXPIRES_IN` 环境变量的限制。如果您请求的时长超过了允许的最大值，它将被自动缩减至最大值，并且 API 响应中会包含一个 `warning` 字段。如果 `TOKEN_EXPIRES_IN` 未设置或为 `0`，则没有上限。
+-   **成功响应**: `{"login_url": "...", "warning"?: "..."}`
+    -   成功时返回 `login_url`。
+    -   如果 `expires_in` 被调整，则会额外返回一个 `warning` 警告信息。
 
 ### 管理员端点
 
 管理员端点需要 `admin_password` 进行身份验证。
 
-#### 1. 列出 Email-SK 对
+#### 1. 管理员登录到 Claude (无限制)
+-   **目的**: 获取 Claude AI 的临时登录 URL，绕过面向用户的有效期限制。
+-   **HTTP 方法**: `POST`
+-   **URL 路径**: `/api/admin/login`
+-   **请求体**: `{"admin_password": "...", "mode": "specific" | "random", "email"?: "...", "unique_name"?: "...", "expires_in"?: number}`
+    -   **`expires_in`** (可选, 数字): 期望的令牌有效时间，单位为秒。如果未提供，默认为 `0` (无期限)。该值 **不受** `TOKEN_EXPIRES_IN` 环境变量的限制。
+
+#### 2. 列出 Email-SK 对
 -   **目的**: 检索所有已配置 Email 地址及其 SK 预览的列表。
 -   **HTTP 方法**: `GET`
 -   **URL 路径**: `/api/admin/list?admin_password=YOUR_PASSWORD`
 
-#### 2. 添加 Email-SK 对
+#### 3. 添加 Email-SK 对
 -   **目的**: 将新的 Email 及其对应的会话密钥 (SK) 添加到 KV 存储中。
 -   **HTTP 方法**: `POST`
 -   **URL 路径**: `/api/admin/add`
