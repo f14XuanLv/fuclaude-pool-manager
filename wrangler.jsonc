@@ -47,7 +47,10 @@
 	 * This template requires the following vars:
 	 * - BASE_URL: The base URL for the Claude API (e.g., "https://demo.fuclaude.com").
 	 */
-	"vars": { "BASE_URL": "https://demo.fuclaude.com" }
+	"vars": {
+		"BASE_URL": "https://demo.fuclaude.com",
+		"TOKEN_EXPIRES_IN": "0"
+	}
 
 	/**
 	 * Static Assets
