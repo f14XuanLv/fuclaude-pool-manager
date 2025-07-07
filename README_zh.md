@@ -5,8 +5,7 @@
 <p align="center">
   <a href="./LICENSE">
     <img alt="License" src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge">
-  </a>
-  <img alt="Version" src="https://img.shields.io/badge/Version-0.1.1-blue?style=for-the-badge">
+  </a><img alt="Version" src="https://img.shields.io/badge/Version-0.1.2-blue?style=for-the-badge">
 </p>
 
 此 Cloudflare Worker 提供了一个后端服务，用于通过会话密钥 (SK) 池来管理对 Claude AI 的访问。它允许用户通过请求特定账户或随机可用账户来获取 Claude 登录 URL，并包含用于管理 SK 池的管理员端点。

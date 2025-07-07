@@ -5,8 +5,7 @@
 <p align="center">
   <a href="./LICENSE">
     <img alt="License" src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge">
-  </a>
-  <img alt="Version" src="https://img.shields.io/badge/Version-0.1.1-blue?style=for-the-badge">
+  </a><img alt="Version" src="https://img.shields.io/badge/Version-0.1.2-blue?style=for-the-badge">
 </p>
 
 This Cloudflare Worker provides a backend service to manage access to Claude AI using a pool of session keys (SKs). It allows users to obtain a Claude login URL by either requesting a specific account or a random available account. It also includes administrative endpoints to add or remove email-SK pairs from the pool.
