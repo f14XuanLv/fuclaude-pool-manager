@@ -3,9 +3,9 @@
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/f14XuanLv/fuclaude-pool-manager)
 
 <p align="center">
-  <a href="./LICENSE">
+  <a href="./LICENSE" style="text-decoration: none;">
     <img alt="License" src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge">
-  </a><a href="https://github.com/f14XuanLv/fuclaude-pool-manager"><img alt="Version" src="https://img.shields.io/badge/Version-0.1.2-blue?style=for-the-badge"></a>
+  </a><a href="https://github.com/f14XuanLv/fuclaude-pool-manager" style="text-decoration: none;"><img alt="Version" src="https://img.shields.io/badge/Version-0.1.2-blue?style=for-the-badge"></a>
 </p>
 
 This Cloudflare Worker provides a backend service to manage access to Claude AI using a pool of session keys (SKs). It allows users to obtain a Claude login URL by either requesting a specific account or a random available account. It also includes administrative endpoints to add or remove email-SK pairs from the pool.
