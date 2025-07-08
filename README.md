@@ -2,6 +2,7 @@
 
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/f14XuanLv/fuclaude-pool-manager)
 
+If you find this project helpful, please consider giving it a star ⭐️!
 <div align="center">
 
 [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](./LICENSE)
