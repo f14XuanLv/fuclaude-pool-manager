@@ -103,6 +103,7 @@ This method uses a Node.js script to guide you through the deployment.
 3.  **Install dependencies:**
     ```bash
     npm install
+    npm install prompts --save-dev
     ```
 4.  **Run the deployment script:**
     ```bash

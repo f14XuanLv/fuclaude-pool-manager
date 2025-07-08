@@ -105,6 +105,7 @@
 3.  **安装依赖:**
     ```bash
     npm install
+    npm install prompts --save-dev
     ```
 4.  **运行部署脚本:**
     ```bash
