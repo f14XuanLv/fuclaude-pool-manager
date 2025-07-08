@@ -347,13 +347,9 @@ export default {
           }
         }
         
-        // GET /api/admin/list: Lists all email-SK pairs (requires admin password as query param)
-        if (url.pathname === '/api/admin/list' && request.method === 'GET') {
-            const queryAdminPassword = url.searchParams.get('admin_password');
-            if (queryAdminPassword !== env.ADMIN_PASSWORD) {
-                 return jsonResponse({ error: 'Unauthorized. Admin password required as query parameter.' }, 401);
-            }
-
+        // POST /api/admin/list: Lists all email-SK pairs (requires admin password in body)
+        if (url.pathname === '/api/admin/list' && request.method === 'POST') {
+            // Password check is now handled by the centralized logic above for POST requests
             const emailMap = await getEmailSkMap(env);
             const sortedEmails = sortEmails(Object.keys(emailMap));
             const listWithIndexAndPreview = sortedEmails.map((email, index) => ({
