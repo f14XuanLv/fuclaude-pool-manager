@@ -186,8 +186,9 @@ Admin endpoints require an `admin_password` for authentication.
 
 #### 2. List Email-SK Pairs
 -   **Purpose**: Retrieves a list of all configured email addresses and a preview of their SKs.
--   **HTTP Method**: `GET`
--   **URL Path**: `/api/admin/list?admin_password=YOUR_PASSWORD`
+-   **HTTP Method**: `POST`
+-   **URL Path**: `/api/admin/list`
+-   **Request Body**: `{"admin_password": "..."}`
 
 #### 3. Add Email-SK Pair
 -   **Purpose**: Adds a new email and its corresponding session key (SK) to the KV store.

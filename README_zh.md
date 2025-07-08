@@ -188,8 +188,9 @@
 
 #### 2. 列出 Email-SK 对
 -   **目的**: 检索所有已配置 Email 地址及其 SK 预览的列表。
--   **HTTP 方法**: `GET`
--   **URL 路径**: `/api/admin/list?admin_password=YOUR_PASSWORD`
+-   **HTTP 方法**: `POST`
+-   **URL 路径**: `/api/admin/list`
+-   **请求体**: `{"admin_password": "..."}`
 
 #### 3. 添加 Email-SK 对
 -   **目的**: 将新的 Email 及其对应的会话密钥 (SK) 添加到 KV 存储中。
